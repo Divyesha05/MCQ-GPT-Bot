@@ -1,0 +1,4 @@
+2024-10-26 12:19:10,279 INFO     gv.iDataMgr: run() function loop start, terminate flag [False]
+2024-10-26 12:19:28,332 INFO     MCQ question parser mode set to : [2]
+2024-10-26 12:20:01,327 INFO     Start to generate reuslt to : User_Dashboard_for_JMedia_Web_Platform_result
+2024-10-26 12:20:01,327 INFO     Processing source file: C:\Users\DIVYESHA\OneDrive\Desktop\project1\MCQ-GPT-Bot-main\src\uploadFolder\User_Dashboard_for_JMedia_Web_Platform.pdf

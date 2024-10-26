@@ -1,0 +1,1 @@
+2024-10-26 10:44:19,940 INFO     gv.iDataMgr: run() function loop start, terminate flag [False]

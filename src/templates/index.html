@@ -1,0 +1,178 @@
+{% extends 'mgmbase.html' %}
+
+{% block title %} MCQ Solver Bot {% endblock %}
+
+{% block style%}{% endblock %}
+
+{% block mgmContent %}
+
+<ul class="list-group">
+
+  <li class="list-group-item">
+    <h3><b class="text-success"> Security MCQ-GPT-Bot Question Solver </b></h3>
+  </li>
+
+  <li class="list-group-item">
+    <h4> Step 1. Select the MCQ bot function mode </h4>
+    <form name="modeselect" action="/mdselect" method="POST" onsubmit="">
+      <input type="radio" name="options" id="option1" value="mode1"> Mode-1 : Use Open-AI to find the answers and
+      download standard databank file. <br>
+      <input type="radio" name="options" id="option2" value="mode2"> Mode-2 : Compare AI's answer with correct answer to
+      get the correctness rate.<br>
+      <p> Current Bot mode:
+          {% if 'mode' in posts%}
+            <b> Mode-{{posts['mode']}} </b>
+          {%else%}
+            <b class="text-warning"> Not linked to OpenAI </b>
+          {% endif %}
+      </p>
+      <button type="submit" class="btn btn-success"> Set MCQ-GPT-Bot mode</button>
+    </form>
+  </li>
+
+  <li class="list-group-item">
+    <h4> Step 2. Select the MCQ source you want to parse </h4>
+
+    <div class="form-check form-check-inline">
+      <input type="radio" class="custom-control-input" id="customRadio1" name="example" value="customEx"
+        onchange="toggleDiv('customRadio1')">
+      <label class="custom-control-label" for="customRadio1"> Upload MCQ-Src file need to parse </label>
+    </div>
+
+
+    <div class="form-check form-check-inline">
+      <input type="radio" class="custom-control-input" id="customRadio2" name="example" value="customEx"
+        onchange="toggleDiv('customRadio2')">
+      <label class="custom-control-label" for="customRadio2"> Parse questions from MCQ-web url </label>
+    </div>
+
+    <div class="form-check form-check-inline">
+      <input type="radio" class="custom-control-input" id="customRadio3" name="example" value="customEx"
+        onchange="toggleDiv('customRadio3')">
+      <label class="custom-control-label" for="customRadio3"> Copy the questions contents directly </label>
+    </div>
+
+    <p> </p>
+    <div id="content_1" style="display: none">
+      <form action="/fileupload" method="POST" enctype="multipart/form-data">
+        <div class="input-group">
+          <input type="file" class="form-control" id="customFile" name="file">
+          <input type="submit" value="Upload">
+        </div>
+      </form>
+    </div>
+
+    <div id="content_2" style="display: none">
+      <form action="/urlupload" method="POST" enctype="multipart/form-data">
+        <label for="mcqurl">Input a MCQ web URL : </label>
+        <input type="url" id="mcqurl" name="mcqurl" style="width: 60%;">
+        <input type="submit">
+      </form>
+    </div>
+
+    <div id="content_3" style="display: none">
+      <form action="/textupload" method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="contents"> Security MCQ contents:</label>
+        <textarea class="form-control" rows="5" id="contents" name="text">--- remote this line and copy the MCQ contents here ---
+          </textarea>
+        <input type="submit">
+      </div>
+      </form>
+    </div>
+    <p> </p>
+  </li>
+
+  <li class="list-group-item">
+    <h4> Step 3. Process the MCQ source by Open-AI </h4>
+    {% if posts is not none and 'filename' in posts %}
+      <b> Current uploaded src : [ </b> &nbsp; {{ posts['filename']}}  &nbsp; <b> ] </b> &nbsp;
+      <form id="startprocess" method="POST" action="#">
+        <input type="submit" value="Start">
+      </form>
+    <div class="spinner-border text-primary" id="progspinner" style="display: none;"> </div>
+    {% else %}
+      <b class="text-warning"> Warning </b> : Please upload or insert a MCQ source in step 1 
+    {% endif %}
+    <p> <b class="text-success"> MCQ Proccess Log : </b> </p> 
+    <div id="log" style="display: block">
+        <textarea class="form-control" style="font-family: monospace;" rows="10" id="resultContents" name="resultContents", value="">
+        </textarea>
+    </div>
+  </li>
+</ul>
+
+<script>
+  
+  // function to toggle different source selection upload components.
+  function toggleDiv(radioName){
+    document.getElementById("content_1").style.display = "none";
+    document.getElementById("content_2").style.display = "none";
+    document.getElementById("content_3").style.display = "none";
+    if (radioName === "customRadio1") {
+      document.getElementById("content_1").style.display = "block";
+    } else if (radioName === "customRadio2") {
+      document.getElementById("content_2").style.display = "block";
+    } else if (radioName === "customRadio3") {
+      document.getElementById("content_3").style.display = "block";
+    }
+  };
+
+  // All the socketIO function here: 
+  $(document).ready(function (){
+      // Init the web socketIO and try to connect to the server.
+      var socket = io();
+      socket.on('connect', function(){
+          socket.emit('cli_request', { data : 'index_client_connect'});
+        }
+      );
+
+      // Append the server response to the page log text field.
+      socket.on('serv_response', function (msg, cb){
+          document.getElementById('resultContents').innerHTML += msg.data
+          // Send the download requesnt server respond the file can be download.
+          if (msg.data.includes('Downloading result')){
+            socket.emit('cli_request', { data: 'download' });
+            document.getElementById('progspinner').style.display = "none";
+            document.getElementById('startprocess').style.display = "block";
+          }
+          if (cb)
+            cb();
+        }
+      );
+      
+      // When the server reply file ready, revoke the download link.
+      socket.on('file_ready', function (data){
+          var blob = new Blob([data.content], { type: 'text/plain' });
+          var url = URL.createObjectURL(blob);
+          var link = document.createElement('a');
+          link.href = url;
+          link.download = data.filename + '.txt';
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }
+      );
+
+      // Test response received from server is handled here
+      socket.on('startprocess', function (msg) {
+          console.log(msg.data);
+          document.getElementById('resultContents').innerHTML += msg.data 
+        }
+      );
+
+      // Handlers for the different forms in the page.
+      // These accept data from the user and send it to the server in a
+      // variety of ways
+      $('form#startprocess').submit(function (event) {
+          document.getElementById('resultContents').innerHTML = ""
+          document.getElementById('progspinner').style.display = "block";
+          document.getElementById('startprocess').style.display = "none";
+          socket.emit('startprocess', { data: 'Start to process file' });
+          return false;
+        }
+      );
+    }
+  );
+</script>
+
+{% endblock %}
